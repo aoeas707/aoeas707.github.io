@@ -190,6 +190,20 @@ body { font-family: -apple-system, 'Microsoft YaHei', 'PingFang SC', sans-serif;
 .auth-box h3 { margin-bottom:8px; }
 .auth-box .hint { font-size:13px; color:var(--sub); margin-bottom:20px; }
 
+/* ====== CATEGORY MANAGEMENT ====== */
+.cat-manage-list { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+.cat-manage-item {
+  display:flex; align-items:center; gap:6px; padding:6px 14px;
+  background:var(--tag-bg); border-radius:20px; font-size:13px; color:var(--tag-color);
+}
+.cat-manage-item.default { background:#e8f5e9; color:#2e7d32; cursor:default; }
+.cat-manage-item.default .cat-del { display:none; }
+.cat-manage-item .cat-del {
+  cursor:pointer; font-size:15px; opacity:.5; background:none; border:none; color:inherit; padding:0;
+}
+.cat-manage-item .cat-del:hover { opacity:1; color:#e04040; }
+.cat-manage-add { display:flex; gap:8px; }
+
 /* ====== TOAST ====== */
 .toast {
   position:fixed; bottom:30px; left:50%; transform:translateX(-50%);
@@ -259,6 +273,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', 'PingFang SC', sans-serif;
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="btn btn-primary" onclick="openAddModal()">+ 添加新梗</button>
       <button class="btn btn-primary" style="background:#8b5cf6;color:#fff;" onclick="triggerImport()">📊 批量导入</button>
+      <button class="btn btn-primary" style="background:#06b6d4;color:#fff;" onclick="showCatManage()">📂 管理分类</button>
       <button class="btn btn-primary" style="background:#6366f1;color:#fff;" onclick="showGitSettings()" id="btnGitSetup">⚙ 同步设置</button>
       <button class="btn btn-primary" style="background:#22c55e;color:#fff;" onclick="exportData()">📥 手动导出</button>
     </div>
@@ -289,6 +304,23 @@ body { font-family: -apple-system, 'Microsoft YaHei', 'PingFang SC', sans-serif;
     <div id="importErrors" style="max-height:240px;overflow-y:auto;font-size:12px;color:#666;"></div>
     <div class="form-actions">
       <button class="btn btn-secondary" onclick="closeModal('importModal')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- CATEGORY MANAGEMENT MODAL -->
+<div class="modal-overlay" id="catManageModal">
+  <div class="modal" style="max-width:560px;">
+    <button class="modal-close" onclick="closeModal('catManageModal')">X</button>
+    <h3>📂 管理分类</h3>
+    <p style="font-size:12px;color:#999;margin-bottom:12px;">默认分类（CS、无畏契约、普通）不可删除</p>
+    <div class="cat-manage-list" id="catManageList"></div>
+    <div class="cat-manage-add">
+      <input id="newCatName" placeholder="输入新分类名称" style="flex:1;padding:8px 14px;border:2px solid var(--border);border-radius:10px;font-size:14px;outline:none;" onkeydown="if(event.key==='Enter'){event.preventDefault();doAddCategory();}">
+      <button class="btn btn-primary" onclick="doAddCategory()">添加</button>
+    </div>
+    <div class="form-actions" style="margin-top:16px;">
+      <button class="btn btn-secondary" onclick="closeModal('catManageModal')">关闭</button>
     </div>
   </div>
 </div>
@@ -377,6 +409,79 @@ let memes = (function() {
 
 function save() { localStorage.setItem('memes', JSON.stringify(memes)); }
 
+// ==================== CATEGORY MANAGEMENT ====================
+const DEFAULT_CATEGORIES = ['CS', '无畏契约', '普通'];
+
+function getCustomCategories() {
+  try {
+    return JSON.parse(localStorage.getItem('customCategories') || '[]');
+  } catch(e) { return []; }
+}
+
+function saveCustomCategories(arr) {
+  localStorage.setItem('customCategories', JSON.stringify(arr));
+}
+
+function getAllCategories() {
+  return DEFAULT_CATEGORIES.concat(getCustomCategories());
+}
+
+function isDefaultCategory(cat) {
+  return DEFAULT_CATEGORIES.indexOf(cat) !== -1;
+}
+
+function addCategory(name) {
+  name = name.trim();
+  if (!name) { toast('分类名不能为空'); return false; }
+  if (getAllCategories().indexOf(name) !== -1) { toast('该分类已存在'); return false; }
+  var customs = getCustomCategories();
+  customs.push(name);
+  saveCustomCategories(customs);
+  return true;
+}
+
+function removeCategory(name) {
+  if (isDefaultCategory(name)) { toast('默认分类不可删除'); return false; }
+  var customs = getCustomCategories().filter(function(c) { return c !== name; });
+  saveCustomCategories(customs);
+  return true;
+}
+
+function showCatManage() {
+  renderCatManageList();
+  document.getElementById('newCatName').value = '';
+  document.getElementById('catManageModal').classList.add('show');
+}
+
+function renderCatManageList() {
+  var cats = getAllCategories();
+  document.getElementById('catManageList').innerHTML = cats.map(function(c) {
+    var isDefault = isDefaultCategory(c);
+    return '<span class="cat-manage-item' + (isDefault ? ' default' : '') + '">' +
+      esc(c) + (isDefault ? ' <small>(默认)</small>' : '') +
+      '<button class="cat-del" onclick="doRemoveCategory(\'' + esc(c).replace(/'/g, "\\'") + '\')" title="删除">×</button>' +
+    '</span>';
+  }).join('');
+}
+
+function doAddCategory() {
+  var inp = document.getElementById('newCatName');
+  var name = inp.value.trim();
+  if (!addCategory(name)) return;
+  inp.value = '';
+  renderCatManageList();
+  toast('分类「' + name + '」已添加');
+  updateCatCounts();
+}
+
+function doRemoveCategory(name) {
+  if (!confirm('确定删除分类「' + name + '」吗？已有梗的分类名不受影响。')) return;
+  if (!removeCategory(name)) return;
+  renderCatManageList();
+  toast('分类「' + name + '」已删除');
+  updateCatCounts();
+}
+
 // ==================== EXPORT DATA ====================
 function exportData() {
   var json = JSON.stringify(memes, null, 2);
@@ -418,7 +523,7 @@ function handleFileImport(event) {
 
       var header = rows[0];
       var dataRows = rows.slice(1);
-      var validCategories = ['CS', '无畏契约', '普通'];
+      var validCategories = getAllCategories();
 
       var successCount = 0;
       var skipCount = 0;
@@ -671,17 +776,17 @@ function showCategoryPage() {
 }
 
 function renderCategoryPage() {
-  const categories = ['CS', '无畏契约', '普通'];
+  const categories = getAllCategories();
   const counts = {};
   categories.forEach(c => { counts[c] = memes.filter(m => m.category === c).length; });
   const catNames = { 'CS': '反恐精英', '无畏契约': '无畏契约', '普通': '通用热梗' };
   const catDescs = { 'CS': 'Counter-Strike 系列游戏相关梗', '无畏契约': 'Valorant 无畏契约相关梗', '普通': '互联网通用流行梗' };
   const catClass = { 'CS': 'cs', '无畏契约': 'valorant', '普通': '' };
   document.getElementById('catGrid').innerHTML = categories.map(c => `
-    <div class="cat-card ${catClass[c]}" onclick="selectCategoryAndGoHome('${c}')">
+    <div class="cat-card ${catClass[c] || ''}" onclick="selectCategoryAndGoHome('${c}')">
       <div class="cat-card-count">${counts[c]}</div>
-      <div class="cat-card-name">${catNames[c]}</div>
-      <div class="cat-card-desc">${catDescs[c]}</div>
+      <div class="cat-card-name">${catNames[c] || c}</div>
+      <div class="cat-card-desc">${catDescs[c] || '自定义分类'}</div>
     </div>
   `).join('');
 }
@@ -808,7 +913,7 @@ function openEditModal(id) {
 
 function showFormModal(data) {
   const modal = document.getElementById('formModalContent');
-  const cats = ['CS','无畏契约','普通'];
+  const cats = getAllCategories();
   modal.innerHTML = `
     <button class="modal-close" onclick="closeModal('formModal')">X</button>
     <h3>${editingId?'编辑梗':'添加新梗'}</h3>
@@ -898,6 +1003,7 @@ document.getElementById('detailModal').addEventListener('click', function(e) { i
 document.getElementById('formModal').addEventListener('click', function(e) { if(e.target===this) closeModal('formModal'); });
 document.getElementById('gitSettingsModal').addEventListener('click', function(e) { if(e.target===this) closeModal('gitSettingsModal'); });
 document.getElementById('importModal').addEventListener('click', function(e) { if(e.target===this) closeModal('importModal'); });
+document.getElementById('catManageModal').addEventListener('click', function(e) { if(e.target===this) closeModal('catManageModal'); });
 
 function toast(msg) {
   const el = document.getElementById('toast');
