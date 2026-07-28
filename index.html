@@ -897,6 +897,7 @@ function showAdminPanel() {
   document.getElementById('headerRight').innerHTML = '<button class="btn btn-logout" onclick="adminLogout()">已登录 | 退出</button>';
   updateSyncUI();
   updateReviewBadge();
+  fetchReviewsFromGit();
   renderManageTable();
 }
 
@@ -1049,6 +1050,7 @@ function getPendingReviews() {
 
 function savePendingReviews(arr) {
   localStorage.setItem('pendingReviews', JSON.stringify(arr));
+  syncReviewsToGitHub();
 }
 
 function submitForReview(memeId, data) {
@@ -1176,6 +1178,77 @@ function updateReviewBadge() {
     badge.textContent = count;
     badge.style.display = count > 0 ? '' : 'none';
   }
+}
+
+// 生成 reviews.json 内容
+function generateReviewsContent() {
+  return JSON.stringify(getPendingReviews());
+}
+
+// 同步审核数据到 GitHub（通过 Worker）
+function syncReviewsToGitHub() {
+  var cfg = getGitConfig();
+  if (!cfg || !cfg.owner || !cfg.repo || !cfg.workerUrl || !cfg.secret) return;
+
+  fetch(cfg.workerUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      owner: cfg.owner,
+      repo: cfg.repo,
+      secret: cfg.secret,
+      path: 'reviews.json',
+      action: 'write',
+      content: generateReviewsContent()
+    })
+  }).catch(function(){});
+}
+
+// 从 GitHub 拉取最新审核数据
+async function fetchReviewsFromGit() {
+  var cfg = getGitConfig();
+  if (!cfg || !cfg.owner || !cfg.repo || !cfg.workerUrl || !cfg.secret) return;
+
+  try {
+    var resp = await fetch(cfg.workerUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        owner: cfg.owner,
+        repo: cfg.repo,
+        secret: cfg.secret,
+        path: 'reviews.json',
+        action: 'read'
+      })
+    });
+    if (!resp.ok) return;
+    var result = await resp.json();
+    if (result.success && result.content) {
+      try {
+        var remoteReviews = JSON.parse(result.content);
+        var localReviews = getPendingReviews();
+        // 合并：远端为主，本地独有的 pending 追加
+        var remoteIds = {};
+        remoteReviews.forEach(function(r) { remoteIds[r.id] = true; });
+        localReviews.forEach(function(r) {
+          if (r.status === 'pending' && !remoteIds[r.id]) {
+            remoteReviews.push(r);
+          }
+        });
+        savePendingReviewsLocal(remoteReviews);
+        updateReviewBadge();
+        // 如果审核弹窗开着，刷新列表
+        if (document.getElementById('reviewModal').classList.contains('show')) {
+          renderReviewList();
+        }
+      } catch(e) {}
+    }
+  } catch(e) {}
+}
+
+// 仅存 localStorage，不同步到 GitHub（由调用方决定是否同步）
+function savePendingReviewsLocal(arr) {
+  localStorage.setItem('pendingReviews', JSON.stringify(arr));
 }
 
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
