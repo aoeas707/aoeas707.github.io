@@ -204,6 +204,22 @@ body { font-family: -apple-system, 'Microsoft YaHei', 'PingFang SC', sans-serif;
 .cat-manage-item .cat-del:hover { opacity:1; color:#e04040; }
 .cat-manage-add { display:flex; gap:8px; }
 
+/* ====== REVIEW SYSTEM ====== */
+.review-badge {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:20px; height:20px; padding:0 6px;
+  background:#e04040; color:#fff; border-radius:10px;
+  font-size:11px; font-weight:700; margin-left:4px; vertical-align:top;
+}
+.review-list { display:flex; flex-direction:column; gap:12px; }
+.review-item {
+  background:#f9fafb; border:1px solid var(--border); border-radius:12px;
+  padding:16px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+}
+.review-item .info { flex:1; font-size:13px; line-height:1.8; }
+.review-item .info .label { color:var(--sub); font-size:11px; }
+.review-item .actions { display:flex; flex-direction:column; gap:6px; min-width:70px; }
+
 /* ====== TOAST ====== */
 .toast {
   position:fixed; bottom:30px; left:50%; transform:translateX(-50%);
@@ -275,6 +291,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', 'PingFang SC', sans-serif;
       <button class="btn btn-primary" style="background:#8b5cf6;color:#fff;white-space:nowrap;min-width:fit-content;" onclick="triggerImport()">📊 批量导入</button>
       <button class="btn btn-primary" style="background:#06b6d4;color:#fff;white-space:nowrap;min-width:fit-content;" onclick="showCatManage()">📂 管理分类</button>
       <button class="btn btn-primary" style="background:#6366f1;color:#fff;white-space:nowrap;min-width:fit-content;" onclick="showGitSettings()" id="btnGitSetup">⚙ 同步设置</button>
+      <button class="btn btn-primary" style="background:#f97316;color:#fff;white-space:nowrap;min-width:fit-content;" onclick="showReviewPanel()">📋 审核<span class="review-badge" id="reviewBadge" style="display:none;">0</span></button>
       <button class="btn btn-primary" style="background:#22c55e;color:#fff;" onclick="exportData()">📥 手动导出</button>
     </div>
   </div>
@@ -304,6 +321,19 @@ body { font-family: -apple-system, 'Microsoft YaHei', 'PingFang SC', sans-serif;
     <div id="importErrors" style="max-height:240px;overflow-y:auto;font-size:12px;color:#666;"></div>
     <div class="form-actions">
       <button class="btn btn-secondary" onclick="closeModal('importModal')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- REVIEW MODAL -->
+<div class="modal-overlay" id="reviewModal">
+  <div class="modal" style="max-width:640px;">
+    <button class="modal-close" onclick="closeModal('reviewModal')">X</button>
+    <h3>📋 审核管理</h3>
+    <div class="review-list" id="reviewList"></div>
+    <div id="reviewEmpty" style="text-align:center;padding:40px;color:var(--sub);font-size:14px;">暂无待审核的内容</div>
+    <div class="form-actions" style="margin-top:16px;">
+      <button class="btn btn-secondary" onclick="closeModal('reviewModal')">关闭</button>
     </div>
   </div>
 </div>
@@ -820,7 +850,9 @@ function openDetail(id) {
     ${currentUser==='admin' ? `<div style="margin-top:16px;text-align:right;">
       <button class="btn btn-secondary btn-small" onclick="closeModal('detailModal');openEditModal(${m.id})">编辑</button>
       <button class="btn btn-danger btn-small" onclick="if(confirm('确定删除「${esc(m.title)}」吗？')){deleteMeme(${m.id});closeModal('detailModal');}">删除</button>
-    </div>` : ''}
+    </div>` : `<div style="margin-top:16px;text-align:right;">
+      <button class="btn btn-primary btn-small" style="background:#8b5cf6;color:#fff;" onclick="closeModal('detailModal');openEditModal(${m.id},'review')">📝 建议修改</button>
+    </div>`}
   `;
   overlay.classList.add('show');
 }
@@ -864,6 +896,7 @@ function showAdminPanel() {
   document.getElementById('adminPanel').classList.add('show');
   document.getElementById('headerRight').innerHTML = '<button class="btn btn-logout" onclick="adminLogout()">已登录 | 退出</button>';
   updateSyncUI();
+  updateReviewBadge();
   renderManageTable();
 }
 
@@ -904,19 +937,23 @@ function renderManageTable() {
 // ==================== CRUD ====================
 function openAddModal() { editingId=null; showFormModal({title:'', desc:'', origin:'', example:'', tags:[], category:'CS'}); }
 
-function openEditModal(id) {
+function openEditModal(id, mode) {
   const m = memes.find(x=>x.id===id);
   if(!m) return;
   editingId = id;
-  showFormModal({...m});
+  showFormModal({...m}, mode);
 }
 
-function showFormModal(data) {
+function showFormModal(data, mode) {
+  mode = mode || 'admin';
+  window._formMode = mode;
+  var isAdmin = mode === 'admin';
   const modal = document.getElementById('formModalContent');
   const cats = getAllCategories();
   modal.innerHTML = `
     <button class="modal-close" onclick="closeModal('formModal')">X</button>
-    <h3>${editingId?'编辑梗':'添加新梗'}</h3>
+    <h3>${editingId ? (isAdmin ? '编辑梗' : '建议修改') : '添加新梗'}</h3>
+    ${!isAdmin ? '<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#92400e;">📢 提交后将进入审核，管理员审核通过后才会发布</div>' : ''}
     <div class="form-group"><label>梗名 *</label><input id="fTitle" value="${esc(data.title)}" placeholder="例如：内卷"></div>
     <div class="form-group"><label>分类</label><select id="fCategory">${cats.map(c=>`<option ${c===data.category?'selected':''}>${c}</option>`).join('')}</select></div>
     <div class="form-group"><label>含义解释 *</label><textarea id="fDesc" placeholder="详细解释这个梗是什么意思...">${esc(data.desc)}</textarea></div>
@@ -927,7 +964,7 @@ function showFormModal(data) {
       <div class="tag-input-wrap"><input id="fTagInput" placeholder="输入标签后按回车添加" onkeydown="if(event.key==='Enter'){event.preventDefault();addTag();}"><button class="btn btn-secondary btn-small" onclick="addTag()">添加</button></div>
       <div class="tag-list" id="fTagList">${(data.tags||[]).map(t=>`<span class="tag-item">${esc(t)}<button onclick="removeTag(this,'${esc(t)}')">×</button></span>`).join('')}</div>
     </div>
-    <div class="form-actions"><button class="btn btn-secondary" onclick="closeModal('formModal')">取消</button><button class="btn btn-primary" onclick="saveMeme()">保存</button></div>
+    <div class="form-actions"><button class="btn btn-secondary" onclick="closeModal('formModal')">取消</button><button class="btn btn-primary" onclick="saveMeme()">${isAdmin ? '保存' : '提交审核'}</button></div>
   `;
   editingId = editingId;
   window._formTags = [...(data.tags||[])];
@@ -963,6 +1000,14 @@ function saveMeme() {
     example: document.getElementById('fExample').value.trim(),
     tags: window._formTags,
   };
+
+  // 用户建议模式：提交审核
+  if (window._formMode === 'review') {
+    submitForReview(editingId, data);
+    return;
+  }
+
+  // 管理员模式：直接保存
   if (editingId) {
     const idx = memes.findIndex(m=>m.id===editingId);
     if(idx!==-1) { memes[idx] = {...memes[idx], ...data}; }
@@ -996,6 +1041,143 @@ function getFilteredMemes() {
   return currentCategory === '全部' ? memes : memes.filter(m => m.category === currentCategory);
 }
 
+// ==================== REVIEW SYSTEM ====================
+function getPendingReviews() {
+  try { return JSON.parse(localStorage.getItem('pendingReviews') || '[]'); }
+  catch(e) { return []; }
+}
+
+function savePendingReviews(arr) {
+  localStorage.setItem('pendingReviews', JSON.stringify(arr));
+}
+
+function submitForReview(memeId, data) {
+  var reviews = getPendingReviews();
+  var reviewId = reviews.length ? Math.max.apply(null, reviews.map(function(r){return r.id;})) + 1 : 1;
+  reviews.push({
+    id: reviewId,
+    memeId: memeId || null,
+    data: data,
+    type: memeId ? 'edit' : 'new',
+    submittedAt: new Date().toISOString().split('T')[0],
+    status: 'pending'
+  });
+  savePendingReviews(reviews);
+  closeModal('formModal');
+  editingId = null;
+  window._formMode = 'admin';
+  toast('✅ 修改建议已提交，等待管理员审核');
+}
+
+function showReviewPanel() {
+  renderReviewList();
+  document.getElementById('reviewModal').classList.add('show');
+}
+
+function renderReviewList() {
+  var reviews = getPendingReviews().filter(function(r){ return r.status === 'pending'; });
+  var container = document.getElementById('reviewList');
+  var empty = document.getElementById('reviewEmpty');
+  if (reviews.length === 0) {
+    container.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  container.innerHTML = reviews.map(function(r) {
+    var d = r.data;
+    var originalTitle = '';
+    if (r.type === 'edit' && r.memeId) {
+      var original = memes.find(function(m){ return m.id === r.memeId; });
+      if (original) originalTitle = original.title;
+    }
+    return '<div class="review-item">' +
+      '<div class="info">' +
+        '<strong>' + esc(d.title) + '</strong>' +
+        (r.type === 'edit' ? ' <span style="font-size:11px;color:#999;">(修改前：' + esc(originalTitle) + ')</span>' : ' <span style="font-size:11px;color:#2196f3;">(新增)</span>') +
+        '<br><span class="label">含义：</span>' + esc(d.desc).substring(0, 60) + (d.desc.length > 60 ? '...' : '') +
+        '<br><span class="label">分类：</span>' + esc(d.category) +
+        '<br><span class="label">提交时间：</span>' + r.submittedAt +
+      '</div>' +
+      '<div class="actions">' +
+        '<button class="btn btn-primary btn-small" style="width:100%;" onclick="approveReview(' + r.id + ')">通过</button>' +
+        '<button class="btn btn-danger btn-small" style="width:100%;" onclick="rejectReview(' + r.id + ')">拒绝</button>' +
+        '<button class="btn btn-secondary btn-small" style="width:100%;margin-top:4px;" onclick="viewReviewDetail(' + r.id + ')">查看详情</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function approveReview(id) {
+  var reviews = getPendingReviews();
+  var idx = reviews.findIndex(function(r){ return r.id === id; });
+  if (idx === -1) return;
+  var r = reviews[idx];
+  if (r.type === 'edit' && r.memeId) {
+    var mIdx = memes.findIndex(function(m){ return m.id === r.memeId; });
+    if (mIdx !== -1) { memes[mIdx] = Object.assign({}, memes[mIdx], r.data); }
+    toast('修改已通过并发布');
+  } else {
+    var newId = memes.length ? Math.max.apply(null, memes.map(function(m){return m.id;})) + 1 : 1;
+    memes.unshift(Object.assign({id: newId, createdAt: new Date().toISOString().split('T')[0], author: '用户投稿'}, r.data));
+    toast('新梗已通过并发布');
+  }
+  reviews[idx].status = 'approved';
+  savePendingReviews(reviews);
+  save();
+  renderReviewList();
+  renderManageTable();
+  updateCatCounts();
+  updateReviewBadge();
+  if (isGitSyncEnabled()) syncToGitHub();
+}
+
+function rejectReview(id) {
+  if (!confirm('确定拒绝这条审核吗？')) return;
+  var reviews = getPendingReviews();
+  var idx = reviews.findIndex(function(r){ return r.id === id; });
+  if (idx !== -1) { reviews[idx].status = 'rejected'; }
+  savePendingReviews(reviews);
+  renderReviewList();
+  updateReviewBadge();
+  toast('已拒绝');
+}
+
+function viewReviewDetail(id) {
+  var reviews = getPendingReviews();
+  var r = reviews.find(function(rr){ return rr.id === id; });
+  if (!r) return;
+  var d = r.data;
+  var modal = document.getElementById('formModalContent');
+  modal.innerHTML =
+    '<button class="modal-close" onclick="closeModal(\'formModal\')">X</button>' +
+    '<h3>📋 审核详情</h3>' +
+    '<div style="background:#e3f2fd;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#1565c0;">' +
+      '类型：' + (r.type === 'edit' ? '修改现有梗' : '新增梗') + ' | 提交时间：' + r.submittedAt +
+    '</div>' +
+    '<div class="form-group"><label>梗名</label><div style="padding:10px 14px;background:#f9fafb;border-radius:8px;">' + esc(d.title) + '</div></div>' +
+    '<div class="form-group"><label>分类</label><div style="padding:10px 14px;background:#f9fafb;border-radius:8px;">' + esc(d.category) + '</div></div>' +
+    '<div class="form-group"><label>含义解释</label><div style="padding:10px 14px;background:#f9fafb;border-radius:8px;white-space:pre-wrap;">' + esc(d.desc) + '</div></div>' +
+    '<div class="form-group"><label>梗的来历</label><div style="padding:10px 14px;background:#f9fafb;border-radius:8px;white-space:pre-wrap;">' + esc(d.origin || '(无)') + '</div></div>' +
+    '<div class="form-group"><label>使用示例</label><div style="padding:10px 14px;background:#f9fafb;border-radius:8px;white-space:pre-wrap;">' + esc(d.example || '(无)') + '</div></div>' +
+    '<div class="form-group"><label>标签</label><div style="display:flex;flex-wrap:wrap;gap:6px;">' + (d.tags || []).map(function(t){ return '<span class="tag">' + esc(t) + '</span>'; }).join('') + '</div></div>' +
+    '<div class="form-actions">' +
+      '<button class="btn btn-secondary" onclick="closeModal(\'formModal\')">关闭</button>' +
+      '<button class="btn btn-danger" onclick="closeModal(\'formModal\');rejectReview(' + id + ')">拒绝</button>' +
+      '<button class="btn btn-primary" onclick="closeModal(\'formModal\');approveReview(' + id + ')">通过</button>' +
+    '</div>';
+  document.getElementById('formModal').classList.add('show');
+}
+
+function updateReviewBadge() {
+  var count = getPendingReviews().filter(function(r){ return r.status === 'pending'; }).length;
+  var badge = document.getElementById('reviewBadge');
+  if (badge) {
+    badge.textContent = count;
+    badge.style.display = count > 0 ? '' : 'none';
+  }
+}
+
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
 // Close modal on overlay click
@@ -1004,6 +1186,7 @@ document.getElementById('formModal').addEventListener('click', function(e) { if(
 document.getElementById('gitSettingsModal').addEventListener('click', function(e) { if(e.target===this) closeModal('gitSettingsModal'); });
 document.getElementById('importModal').addEventListener('click', function(e) { if(e.target===this) closeModal('importModal'); });
 document.getElementById('catManageModal').addEventListener('click', function(e) { if(e.target===this) closeModal('catManageModal'); });
+document.getElementById('reviewModal').addEventListener('click', function(e) { if(e.target===this) closeModal('reviewModal'); });
 
 function toast(msg) {
   const el = document.getElementById('toast');
