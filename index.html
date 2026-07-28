@@ -280,7 +280,7 @@ body { font-family: -apple-system, 'Microsoft YaHei', 'PingFang SC', sans-serif;
 <script>
 // ==================== DATA ====================
 const ADMIN_PASSWORD = 'admin123';
-let currentUser = null; // 'admin' | null
+let currentUser = null;
 let currentCategory = '全部';
 
 let memes = JSON.parse(localStorage.getItem('memes') || '[]');
@@ -397,7 +397,6 @@ function selectCategoryAndGoHome(cat) {
   document.getElementById('mainContainer').style.display = '';
   document.getElementById('categoryPage').style.display = 'none';
   document.querySelectorAll('.cat-tab').forEach(t=>t.classList.remove('active'));
-  // Highlight the picker tab when a specific category is active
   const pickerTab = document.querySelector('.cat-tab.cat-picker');
   if (pickerTab) pickerTab.classList.add('active');
   document.getElementById('searchInput').value = '';
@@ -478,7 +477,6 @@ function showHome() {
   document.getElementById('authSection').classList.remove('show');
   document.getElementById('headerRight').innerHTML = '<button class="btn btn-admin" onclick="showAdminAuth()">管理员登录</button>';
   document.getElementById('searchInput').value = '';
-  // Reset tab active
   document.querySelectorAll('.cat-tab').forEach(t=>t.classList.remove('active'));
   document.querySelector('.cat-tab')?.classList.add('active');
   updateCatCounts();
