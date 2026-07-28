@@ -1,0 +1,7 @@
+# Cloudflare Worker 配置文件
+name = "meme-wiki-sync"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# 免费计划每天 10 万次请求，完全够用
+usage_model = "bundled"

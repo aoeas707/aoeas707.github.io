@@ -258,17 +258,60 @@ body { font-family: -apple-system, 'Microsoft YaHei', 'PingFang SC', sans-serif;
     <h3 style="font-size:18px;">梗管理</h3>
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="btn btn-primary" onclick="openAddModal()">+ 添加新梗</button>
-      <button class="btn btn-primary" style="background:#22c55e;color:#fff;" onclick="exportData()">📥 导出数据</button>
+      <button class="btn btn-primary" style="background:#6366f1;color:#fff;" onclick="showGitSettings()" id="btnGitSetup">⚙ 同步设置</button>
+      <button class="btn btn-primary" style="background:#22c55e;color:#fff;" onclick="exportData()">📥 手动导出</button>
     </div>
   </div>
-  <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#92400e;line-height:1.6;">
-    <strong>📢 同步提示：</strong>你在此处添加/修改的梗只会保存在你当前浏览器中。<br>
-    要让其他人看到，请：<b>① 点击"导出数据"</b> → <b>② 下载 data.js</b> → <b>③ 替换仓库中的 data.js 并 push 到 GitHub</b>
+  <div id="syncStatusBar" style="background:#e8f5e9;border:1px solid #4caf50;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;line-height:1.6;display:none;">
+    <strong>🔄 自动同步已开启</strong> — 保存后自动推送到 <span id="syncRepoInfo"></span>，其他人将立即看到更新。
+    <span id="syncingBadge" style="display:none;background:#ff9800;color:#fff;padding:2px 8px;border-radius:10px;margin-left:8px;font-size:11px;">同步中...</span>
+  </div>
+  <div id="syncNotSetup" style="background:#fef3c7;border:1px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#92400e;line-height:1.6;">
+    <strong>📢 提示：</strong>你在此处添加/修改的梗保存在浏览器本地。<br>
+    想让其他人看到你的修改？<b>点击"⚙ 同步设置"，配置 Worker 地址后保存即可自动同步！</b>
   </div>
   <table class="manage-table">
     <thead><tr><th>梗名</th><th>分类</th><th style="width:130px;">操作</th></tr></thead>
     <tbody id="manageTbody"></tbody>
   </table>
+</div>
+
+<!-- GITHUB SETTINGS MODAL -->
+<div class="modal-overlay" id="gitSettingsModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('gitSettingsModal')">X</button>
+    <h3>⚙ GitHub 自动同步设置</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:16px;">
+      通过 Cloudflare Worker 安全代理同步。Token 存在服务端，任何管理员登录后点保存即可自动同步到 GitHub。
+    </p>
+    <div class="form-group">
+      <label>GitHub 用户名</label>
+      <input id="gitOwner" placeholder="例如：zhangsan">
+    </div>
+    <div class="form-group">
+      <label>仓库名</label>
+      <input id="gitRepo" placeholder="例如：my-wiki">
+    </div>
+    <div class="form-group">
+      <label>Worker 地址</label>
+      <input id="gitWorkerUrl" placeholder="https://meme-sync.xxxx.workers.dev">
+      <p style="font-size:11px;color:#999;margin-top:4px;">
+        部署 Cloudflare Worker 后获得，见仓库中的 worker.js 部署说明。
+      </p>
+    </div>
+    <div class="form-group">
+      <label>同步密钥</label>
+      <input type="password" id="gitSecret" placeholder="与 Worker 中 SYNC_SECRET 一致">
+      <p style="font-size:11px;color:#999;margin-top:4px;">
+        需与部署 Worker 时设置的 SYNC_SECRET 相同，用于验证请求来源。
+      </p>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-danger btn-small" onclick="clearGitSettings()" style="margin-right:auto;">清除配置</button>
+      <button class="btn btn-secondary" onclick="closeModal('gitSettingsModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveGitSettings()">保存配置</button>
+    </div>
+  </div>
 </div>
 
 <!-- DETAIL MODAL -->
@@ -288,6 +331,16 @@ body { font-family: -apple-system, 'Microsoft YaHei', 'PingFang SC', sans-serif;
 <script>
 // ==================== DATA ====================
 const ADMIN_PASSWORD = 'admin123';
+
+// ==================== DEFAULT SYNC CONFIG ====================
+// 部署 Worker 后填入以下信息，所有管理员在任意电脑上都无需手动配置即可自动同步
+const DEFAULT_SYNC = {
+  owner: 'aoeas707',              // GitHub 用户名，例如 'zhangsan'
+  repo: 'aoeas707',               // 仓库名，例如 'my-wiki'
+  workerUrl: 'meme-wiki-sync.1935777849.workers.dev',          // Cloudflare Worker 地址，例如 'https://meme-sync.xxxx.workers.dev'
+  secret: 'my-secret-2026'              // 与 Worker 中 SYNC_SECRET 一致
+};
+
 let currentUser = null;
 let currentCategory = '全部';
 
@@ -320,6 +373,107 @@ function exportData() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   toast('data.js 已下载！请替换仓库中的文件并 push 到 GitHub');
+}
+
+// ==================== GITHUB AUTO SYNC (via Cloudflare Worker) ====================
+function getGitConfig() {
+  // 先检查 localStorage 中是否有用户手动保存的配置
+  try {
+    var lsConfig = JSON.parse(localStorage.getItem('gitConfig') || 'null');
+    if (lsConfig && lsConfig.owner && lsConfig.repo && lsConfig.workerUrl && lsConfig.secret) {
+      return lsConfig;
+    }
+  } catch(e) {}
+  // 其次使用代码中预设的 DEFAULT_SYNC（部署后填入，所有管理员自动生效）
+  if (DEFAULT_SYNC.owner && DEFAULT_SYNC.repo && DEFAULT_SYNC.workerUrl && DEFAULT_SYNC.secret) {
+    return DEFAULT_SYNC;
+  }
+  return null;
+}
+
+function setGitConfig(cfg) {
+  localStorage.setItem('gitConfig', JSON.stringify(cfg));
+}
+
+function isGitSyncEnabled() {
+  var cfg = getGitConfig();
+  return cfg && cfg.owner && cfg.repo && cfg.workerUrl && cfg.secret;
+}
+
+function updateSyncUI() {
+  var enabled = isGitSyncEnabled();
+  var cfg = getGitConfig();
+  document.getElementById('syncStatusBar').style.display = enabled ? '' : 'none';
+  document.getElementById('syncNotSetup').style.display = enabled ? 'none' : '';
+  if (enabled && cfg) {
+    document.getElementById('syncRepoInfo').textContent = cfg.owner + '/' + cfg.repo;
+  }
+}
+
+function showGitSettings() {
+  var cfg = getGitConfig();
+  document.getElementById('gitOwner').value = (cfg && cfg.owner) ? cfg.owner : '';
+  document.getElementById('gitRepo').value = (cfg && cfg.repo) ? cfg.repo : '';
+  document.getElementById('gitWorkerUrl').value = (cfg && cfg.workerUrl) ? cfg.workerUrl : '';
+  document.getElementById('gitSecret').value = (cfg && cfg.secret) ? cfg.secret : '';
+  document.getElementById('gitSettingsModal').classList.add('show');
+}
+
+function saveGitSettings() {
+  var owner = document.getElementById('gitOwner').value.trim();
+  var repo = document.getElementById('gitRepo').value.trim();
+  var workerUrl = document.getElementById('gitWorkerUrl').value.trim();
+  var secret = document.getElementById('gitSecret').value.trim();
+  if (!owner || !repo || !workerUrl || !secret) { toast('请填写完整信息'); return; }
+  setGitConfig({owner: owner, repo: repo, workerUrl: workerUrl, secret: secret});
+  closeModal('gitSettingsModal');
+  updateSyncUI();
+  toast('同步配置已保存！现在每次保存都会通过 Worker 自动同步到 GitHub');
+}
+
+function clearGitSettings() {
+  localStorage.removeItem('gitConfig');
+  closeModal('gitSettingsModal');
+  updateSyncUI();
+  toast('同步配置已清除');
+}
+
+function generateDataContent() {
+  var json = JSON.stringify(memes, null, 2);
+  return '// 梗百科数据文件\n// 修改此文件后推送到 GitHub，所有访问者都会看到最新内容\nwindow.SEED_MEMES = ' + json + ';\n';
+}
+
+async function syncToGitHub() {
+  var cfg = getGitConfig();
+  if (!cfg || !cfg.owner || !cfg.repo || !cfg.workerUrl || !cfg.secret) return;
+
+  var badge = document.getElementById('syncingBadge');
+  badge.style.display = 'inline';
+
+  try {
+    // 调用 Cloudflare Worker 代理更新 GitHub
+    var resp = await fetch(cfg.workerUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        owner: cfg.owner,
+        repo: cfg.repo,
+        secret: cfg.secret,
+        content: generateDataContent()
+      })
+    });
+
+    if (!resp.ok) {
+      var errData = await resp.json().catch(function(){ return {}; });
+      throw new Error(errData.error || ('HTTP ' + resp.status));
+    }
+
+    toast('✅ 已自动同步到 GitHub！');
+  } catch(e) {
+    toast('⚠ ' + e.message);
+  } finally {
+    badge.style.display = 'none';
+  }
 }
 
 // ==================== RENDER ====================
@@ -472,6 +626,7 @@ function showAdminPanel() {
   document.getElementById('authSection').classList.remove('show');
   document.getElementById('adminPanel').classList.add('show');
   document.getElementById('headerRight').innerHTML = '<button class="btn btn-logout" onclick="adminLogout()">已登录 | 退出</button>';
+  updateSyncUI();
   renderManageTable();
 }
 
@@ -580,11 +735,13 @@ function saveMeme() {
     memes.unshift({id:newId, ...data, createdAt: new Date().toISOString().split('T')[0], author:'管理员'});
     toast('新梗已添加');
   }
-  save();
+  save(); // 保存到 localStorage
   closeModal('formModal');
   editingId = null;
   if(currentUser==='admin') { renderManageTable(); }
   else { updateCatCounts(); renderCards(getFilteredMemes()); }
+  // 自动同步到 GitHub
+  if (isGitSyncEnabled()) syncToGitHub();
 }
 
 function deleteMeme(id) {
@@ -594,6 +751,8 @@ function deleteMeme(id) {
   updateCatCounts();
   renderCards(getFilteredMemes());
   toast('已删除');
+  // 自动同步到 GitHub
+  if (isGitSyncEnabled()) syncToGitHub();
 }
 
 function getFilteredMemes() {
@@ -605,6 +764,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('show'); 
 // Close modal on overlay click
 document.getElementById('detailModal').addEventListener('click', function(e) { if(e.target===this) closeModal('detailModal'); });
 document.getElementById('formModal').addEventListener('click', function(e) { if(e.target===this) closeModal('formModal'); });
+document.getElementById('gitSettingsModal').addEventListener('click', function(e) { if(e.target===this) closeModal('gitSettingsModal'); });
 
 function toast(msg) {
   const el = document.getElementById('toast');
