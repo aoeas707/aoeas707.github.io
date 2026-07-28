@@ -2,17 +2,6 @@
 // 修改此文件后推送到 GitHub，所有访问者都会看到最新内容
 window.SEED_MEMES = [
   {
-    "id": 21,
-    "title": "111",
-    "desc": "111",
-    "category": "CS",
-    "origin": "111",
-    "example": "111",
-    "tags": [],
-    "createdAt": "2026-07-28",
-    "author": "管理员"
-  },
-  {
     "id": 20,
     "title": "111",
     "desc": "111",
