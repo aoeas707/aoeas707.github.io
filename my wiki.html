@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>梗百科 - 网络热梗词典</title>
+<style>
+:root {
+  --bg: #f4f5f7;
+  --card-bg: #fff;
+  --text: #222;
+  --sub: #666;
+  --accent: #ff6b35;
+  --accent2: #4a90d9;
+  --border: #e8e8e8;
+  --tag-bg: #eef2ff;
+  --tag-color: #4a6cf7;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, 'Microsoft YaHei', 'PingFang SC', sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+/* ====== HEADER ====== */
+.header {
+  background: linear-gradient(135deg, #ff6b35 0%, #f7a542 100%);
+  padding:14px 24px;
+  display:flex; align-items:center; justify-content:space-between;
+  box-shadow:0 2px 12px rgba(255,107,53,.3);
+  position:sticky; top:0; z-index:100;
+}
+.logo-area { display:flex; align-items:center; gap:10px; cursor:pointer; }
+.logo { width:40px; height:40px; background:#fff; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; }
+.site-title { color:#fff; font-size:22px; font-weight:700; letter-spacing:1px; }
+.header-right { display:flex; align-items:center; gap:12px; }
+.btn {
+  padding:8px 18px; border:none; border-radius:8px; cursor:pointer;
+  font-size:14px; font-weight:600; transition:all .2s;
+}
+.btn-admin { background:rgba(255,255,255,.2); color:#fff; border:1.5px solid rgba(255,255,255,.5); }
+.btn-admin:hover { background:rgba(255,255,255,.35); }
+.btn-logout { background:#fff; color:#ff6b35; }
+.btn-logout:hover { background:#ffe0d0; }
+.btn-primary { background:var(--accent); color:#fff; }
+.btn-primary:hover { background:#e55a2b; transform:translateY(-1px); }
+.btn-secondary { background:var(--border); color:var(--text); }
+.btn-secondary:hover { background:#ddd; }
+.btn-danger { background:#e04040; color:#fff; }
+.btn-danger:hover { background:#c03030; }
+.btn-small { padding:5px 12px; font-size:12px; }
+
+/* ====== SEARCH ====== */
+.search-bar {
+  max-width:640px; margin:24px auto; padding:0 24px;
+  display:flex; gap:8px;
+}
+.search-input {
+  flex:1; padding:12px 16px; border:2px solid var(--border); border-radius:12px;
+  font-size:15px; outline:none; transition:border .2s; background:var(--card-bg);
+}
+.search-input:focus { border-color:var(--accent); }
+
+/* ====== CATEGORY TABS ====== */
+.category-tabs {
+  max-width:640px; margin:0 auto 20px; padding:0 24px;
+  display:flex; gap:10px; flex-wrap:wrap; justify-content:center;
+}
+.cat-tab {
+  padding:10px 22px; border:2px solid var(--border); border-radius:24px;
+  background:var(--card-bg); cursor:pointer; font-size:14px; font-weight:600;
+  color:var(--sub); transition:all .2s; user-select:none;
+}
+.cat-tab:hover { border-color:var(--accent); color:var(--accent); }
+.cat-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.cat-tab.cs.active { background:#DE9B35; border-color:#DE9B35; }
+.cat-tab.valorant.active { background:#FF4655; border-color:#FF4655; }
+.cat-tab .badge {
+  display:inline-block; margin-left:6px; padding:1px 8px; border-radius:10px;
+  font-size:11px; background:rgba(0,0,0,.1);
+}
+.cat-tab.active .badge { background:rgba(255,255,255,.25); }
+.cat-tab.cat-picker {
+  border-style:dashed; color:var(--accent2); border-color:var(--accent2);
+}
+.cat-tab.cat-picker:hover { background:var(--accent2); color:#fff; border-color:var(--accent2); }
+
+/* ====== CATEGORY PAGE ====== */
+.cat-page-header {
+  display:flex; align-items:center; gap:16px; margin-bottom:20px;
+}
+.cat-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:16px; }
+.cat-card {
+  background:var(--card-bg); border-radius:14px; padding:28px 20px;
+  text-align:center; cursor:pointer; border:2px solid var(--border);
+  transition:transform .2s, box-shadow .2s, border-color .2s;
+}
+.cat-card:hover { transform:translateY(-4px); box-shadow:0 8px 24px rgba(0,0,0,.1); border-color:var(--accent); }
+.cat-card-name { font-size:20px; font-weight:700; margin-bottom:8px; }
+.cat-card-count { font-size:36px; font-weight:800; color:var(--accent); margin-bottom:4px; }
+.cat-card-desc { font-size:13px; color:var(--sub); }
+.cat-card.cs .cat-card-count { color:#DE9B35; }
+.cat-card.valorant .cat-card-count { color:#FF4655; }
+
+/* ====== GRID ====== */
+.container { max-width:1200px; margin:0 auto; padding:0 24px 40px; }
+.placeholder { text-align:center; padding:60px 20px; color:var(--sub); }
+.placeholder p { font-size:16px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(270px, 1fr)); gap:18px; }
+.card {
+  background:var(--card-bg); border-radius:14px; padding:20px;
+  box-shadow:0 2px 8px rgba(0,0,0,.06); cursor:pointer;
+  transition:transform .2s, box-shadow .2s; border:1px solid var(--border);
+}
+.card:hover { transform:translateY(-4px); box-shadow:0 8px 24px rgba(0,0,0,.1); }
+.card-title { font-size:18px; font-weight:700; margin-bottom:6px; }
+.card-desc {
+  font-size:13px; color:var(--sub); line-height:1.6;
+  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+}
+.card-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+.tag {
+  font-size:11px; padding:3px 10px; background:var(--tag-bg);
+  color:var(--tag-color); border-radius:20px; font-weight:500;
+}
+
+/* ====== MODAL ====== */
+.modal-overlay {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.5);
+  z-index:200; justify-content:center; align-items:center; padding:20px;
+  overflow-y:auto;
+}
+.modal-overlay.show { display:flex; }
+.modal {
+  background:#fff; border-radius:16px; width:100%; max-width:580px; max-height:90vh;
+  overflow-y:auto; padding:28px; box-shadow:0 12px 40px rgba(0,0,0,.15);
+  animation:slideIn .25s ease;
+}
+@keyframes slideIn { from{opacity:0;transform:translateY(20px);} to{opacity:1;transform:translateY(0);} }
+.modal h3 { font-size:20px; margin-bottom:20px; color:var(--text); }
+.modal-close {
+  float:right; background:none; border:none; font-size:22px;
+  cursor:pointer; color:var(--sub); padding:0 4px;
+}
+.modal-close:hover { color:var(--text); }
+.form-group { margin-bottom:16px; }
+.form-group label { display:block; font-size:13px; font-weight:600; margin-bottom:5px; color:var(--sub); }
+.form-group input, .form-group textarea, .form-group select {
+  width:100%; padding:10px 14px; border:2px solid var(--border); border-radius:10px;
+  font-size:14px; font-family:inherit; outline:none; transition:border .2s; resize:vertical;
+}
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color:var(--accent2); }
+.form-group textarea { min-height:80px; }
+.form-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+.tag-input-wrap { display:flex; gap:8px; }
+.tag-input-wrap input { flex:1; }
+.tag-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.tag-item {
+  display:flex; align-items:center; gap:4px; padding:4px 10px;
+  background:var(--tag-bg); border-radius:20px; font-size:12px; color:var(--tag-color);
+}
+.tag-item button {
+  background:none; border:none; cursor:pointer; color:var(--tag-color);
+  font-size:14px; padding:0 2px; opacity:.6;
+}
+.tag-item button:hover { opacity:1; }
+
+/* ====== ADMIN PANEL ====== */
+.admin-panel { display:none; margin-top:16px; }
+.admin-panel.show { display:block; }
+.manage-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.manage-table { width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,.04); }
+.manage-table th, .manage-table td { padding:10px 14px; text-align:left; font-size:13px; }
+.manage-table th { background:#fafafa; color:var(--sub); font-weight:600; border-bottom:2px solid var(--border); }
+.manage-table td { border-bottom:1px solid var(--border); }
+.manage-table tr:hover td { background:#f9fafb; }
+.manage-actions { display:flex; gap:6px; }
+
+/* ====== DETAIL MODAL ====== */
+.detail-section { margin-bottom:18px; }
+.detail-section h4 { font-size:12px; color:var(--sub); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+.detail-section .content { font-size:14px; line-height:1.7; }
+.detail-section blockquote {
+  margin-top:6px; padding:12px 16px; background:#f9fafb; border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0; font-style:italic; color:var(--sub);
+}
+.detail-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+
+/* ====== ADMIN AUTH ====== */
+.auth-section { display:none; }
+.auth-section.show { display:flex; justify-content:center; padding:40px 20px; }
+.auth-box { background:#fff; padding:30px; border-radius:14px; box-shadow:0 4px 20px rgba(0,0,0,.08); width:100%; max-width:360px; text-align:center; }
+.auth-box h3 { margin-bottom:8px; }
+.auth-box .hint { font-size:13px; color:var(--sub); margin-bottom:20px; }
+
+/* ====== TOAST ====== */
+.toast {
+  position:fixed; bottom:30px; left:50%; transform:translateX(-50%);
+  background:#333; color:#fff; padding:12px 24px; border-radius:10px;
+  font-size:14px; z-index:999; opacity:0; transition:opacity .3s; pointer-events:none;
+}
+.toast.show { opacity:1; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-area" onclick="showHome()">
+    <div class="logo">梗</div>
+    <span class="site-title">梗百科</span>
+  </div>
+  <div class="header-right" id="headerRight">
+    <button class="btn btn-admin" onclick="showAdminAuth()">管理员登录</button>
+  </div>
+</div>
+
+<!-- SEARCH -->
+<div class="search-bar" id="searchBar">
+  <input class="search-input" type="text" placeholder="搜索热梗，例如：内卷、yyds..." id="searchInput" oninput="searchMeme()">
+</div>
+
+<!-- CATEGORY TABS -->
+<div class="category-tabs" id="categoryTabs">
+  <div class="cat-tab active" onclick="filterByCategory('全部')">全部 <span class="badge" id="badgeAll">0</span></div>
+  <div class="cat-tab cat-picker" onclick="showCategoryPage()">选择类别</div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="container" id="mainContainer">
+  <div class="placeholder" id="emptyHint">
+    <p>暂时还没有梗，等待管理员添加~</p>
+  </div>
+  <div class="grid" id="cardGrid"></div>
+</div>
+
+<!-- CATEGORY SELECT PAGE -->
+<div class="container" id="categoryPage" style="display:none;">
+  <div class="cat-page-header">
+    <button class="btn btn-secondary btn-small" onclick="showHome()">← 返回首页</button>
+    <h3 style="margin:0;">选择分类</h3>
+  </div>
+  <div class="cat-grid" id="catGrid"></div>
+</div>
+
+<!-- ADMIN AUTH -->
+<div class="auth-section" id="authSection">
+  <div class="auth-box">
+    <h3>管理员验证</h3>
+    <p class="hint">请输入管理员密码以登录</p>
+    <div class="form-group">
+      <input type="password" placeholder="管理员密码" id="adminPwd" onkeydown="if(event.key==='Enter')adminLogin()">
+    </div>
+    <button class="btn btn-primary" onclick="adminLogin()" style="width:100%;">登 录</button>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div class="admin-panel container" id="adminPanel">
+  <div class="manage-header">
+    <h3 style="font-size:18px;">梗管理</h3>
+    <button class="btn btn-primary" onclick="openAddModal()">+ 添加新梗</button>
+  </div>
+  <table class="manage-table">
+    <thead><tr><th>梗名</th><th>分类</th><th style="width:130px;">操作</th></tr></thead>
+    <tbody id="manageTbody"></tbody>
+  </table>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal" id="detailModalContent"></div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="formModal">
+  <div class="modal" id="formModalContent"></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== DATA ====================
+const ADMIN_PASSWORD = 'admin123';
+let currentUser = null; // 'admin' | null
+let currentCategory = '全部';
+
+let memes = JSON.parse(localStorage.getItem('memes') || '[]');
+let editingId = null;
+
+// Seed data (only if empty)
+if (memes.length === 0) {
+  memes = [
+    {id:1, title:'内卷', desc:'指同行间竞相付出更多努力以争夺有限资源，导致个体"收益努力比"下降的现象。', origin:'人类学家克利福德·格尔茨提出，后经中国学者引入社会学讨论，在网络爆红。', example:'"大家别再内卷了，一起摸鱼不香吗？"', tags:['社会','职场'], category:'普通', createdAt:'2024-01-15', author:'管理员'},
+    {id:2, title:'YYDS', desc:'永远的神的首字母缩写，用于表达对某人或某物极高的赞美。源自电竞圈，后扩散至全网。', origin:'出自电竞主播山泥若（ShinyRuo）在直播中评价UZI时说："乌兹，永远滴神！"', example:'"周杰伦，华语乐坛YYDS！"', tags:['缩写','赞美','电竞'], category:'普通', createdAt:'2024-01-16', author:'管理员'},
+    {id:3, title:'Eco局', desc:'Counter-Strike术语，指团队经济不足时选择不购买装备的回合，目的是攒钱在下回合全装备出击（force buy）。也被称为经济局或ECO round。', origin:'CS竞技体系中"经济管理"是核心策略之一，Eco局是职业比赛和高分段天梯的常规战术。', example:'"这把我们Eco，下把全起打长枪局。"', tags:['CS','战术','经济'], category:'CS', createdAt:'2024-07-01', author:'管理员'},
+    {id:4, title:'Rush B', desc:'Counter-Strike中最具标志性的战术口令之一，意为全队快速冲击B包点。因简单粗暴而成为社区经典梗，也常被用于调侃"无脑冲"。', origin:'CS社区自1.6时代就流行，后因各类搞笑视频和语音轮盘传播更广，成为CS文化符号。', example:'"Rush B no stop！兄弟们冲！"', tags:['CS','战术','经典'], category:'CS', createdAt:'2024-07-02', author:'管理员'},
+    {id:5, title:'Whiff', desc:'CS/无畏契约通用术语，指玩家在近距离打空所有子弹，非常尴尬。源自挥棒落空的拟声词。', origin:'FPS通用术语，因Twitch直播和集锦视频中的"Whiff剪辑"而广为流传。', example:'"刚才那波我全whiff了，队友都笑死了。"', tags:['CS','无畏契约','FPS','术语'], category:'CS', createdAt:'2024-07-03', author:'管理员'},
+    {id:6, title:'保枪', desc:'CS和瓦中当回合无望取胜时，选择保住自己的武器不死亡，为下一回合保留经济。也常被调侃为"怂了"。', origin:'CS竞技体系中经济管理的核心策略之一，也是社区争论"该不该保"的永恒话题。', example:'"2v5没得打了，保枪保枪！"', tags:['CS','无畏契约','战术'], category:'CS', createdAt:'2024-07-04', author:'管理员'},
+    {id:7, title:'ACE', desc:'在CS/无畏契约中指一名玩家单回合击杀敌方全部5人。中文常叫"灭队"或"五杀"，是个人能力的最高荣誉之一。', origin:'源自扑克牌中的Ace（王牌），FPS游戏沿用来表示"王牌表现"。', example:'"他一个ACE把对面全杀完了！"', tags:['CS','无畏契约','成就','术语'], category:'CS', createdAt:'2024-07-05', author:'管理员'},
+    {id:8, title:'炸鱼/炸鱼塘', desc:'指高段位玩家开小号去低段位对局中碾压新手，像在鱼塘里扔炸弹一样轻松。在CS和瓦中都很常见。', origin:'源自捕鱼术语，FPS社区广泛使用，常引起关于"小号文化"的争议讨论。', example:'"对面大哥40杀，明显是来炸鱼的。"', tags:['CS','无畏契约','社区','争议'], category:'CS', createdAt:'2024-07-06', author:'管理员'},
+    {id:9, title:'干拉', desc:'CS/瓦中指不扔道具直接拉出去对枪的行为。源自"干燥拉扯"的缩写，形容没有道具掩护的干涩对枪。', origin:'国内CS社区自创词汇，因为传入无畏契约后也广泛使用，成为CN FPS圈独有梗。', example:'"别干拉啊！先给颗闪再出去！"', tags:['CS','无畏契约','战术','CN梗'], category:'CS', createdAt:'2024-07-07', author:'管理员'},
+    {id:10, title:'一枪头', desc:'在CS/瓦中用步枪（AK/M4/狂徒/幻象）一枪爆头击杀满血敌人。是枪法精准的象征，也是玩家追求的最高爽感。', origin:'CS 1.6时代AK47一枪爆头就是标志性设定，一直延续到CS2，瓦中狂徒也有同样机制。', example:'"对面见面就一枪头，根本没法打。"', tags:['CS','无畏契约','枪法'], category:'CS', createdAt:'2024-07-08', author:'管理员'},
+    {id:11, title:'窥屏', desc:'指在无畏契约/CS中阵亡后通过观看队友屏幕（或直播延迟）来获取敌方位置信息，属于作弊行为的一种。', origin:'FPS游戏中普遍存在的问题，在瓦中因技能机制使得信息更加关键，窥屏后果更严重。', example:'"别窥屏了，让队友自己打。"', tags:['无畏契约','CS','社区','争议'], category:'无畏契约', createdAt:'2024-07-09', author:'管理员'},
+    {id:12, title:'技能交早', desc:'无畏契约玩家常用吐槽语。指在对局中过早使用技能而导致关键时刻没有技能可用，常见于低分段。', origin:'随着无畏契约国服上线，大量新玩家涌入，技能管理成为热门讨论话题。', example:'"你怎么技能交早了！这波没烟怎么打？"', tags:['无畏契约','新手','吐槽'], category:'无畏契约', createdAt:'2024-07-10', author:'管理员'},
+    {id:13, title:'刀人', desc:'FPS中用近战武器击杀对手，属于极度羞辱对手的行为。在瓦/CS中通常发生在对手没有防备时，执行时伴有特殊音效。', origin:'FPS经典传统，CS中的"刀杀"有额外金钱奖励，瓦中刀人则更多是心理层面的打击。', example:'"哈哈哈我绕后把他刀了，太爽了！"', tags:['CS','无畏契约','操作','羞辱'], category:'CS', createdAt:'2024-07-11', author:'管理员'},
+    {id:14, title:'绝绝子', desc:'表示"绝了"的超强程度级别，极度好或极度差都可用。由"绝了"+"子"（语气词后缀）演变而来。', origin:'源于饭圈文化，在小红书等社交平台上广泛使用后出圈。', example:'"这个奶茶好喝到绝绝子！"', tags:['饭圈','感叹'], category:'普通', createdAt:'2024-01-17', author:'管理员'},
+    {id:15, title:'凡尔赛', desc:'一种"用低调的方式进行炫耀"的说话方式。先抑后扬，明贬暗褒，看似不经意间透露自己的优越生活。', origin:'源于日本漫画《凡尔赛玫瑰》，后经微博博主@小奶球 总结并发扬光大。', example:'"好烦啊，老公又买了一辆保时捷，车库都放不下了。"', tags:['社交','吐槽'], category:'普通', createdAt:'2024-01-19', author:'管理员'},
+    {id:16, title:'破防了', desc:'原指游戏中防御被击破，现在泛指心理防线被击溃，内心受到极大触动。', origin:'最早来源于MOBA类游戏，后被广泛用于表达情绪崩溃。', example:'"看到这个视频真的破防了，太感人了。"', tags:['游戏','情绪'], category:'普通', createdAt:'2024-01-20', author:'管理员'},
+    {id:17, title:'摸鱼', desc:'指在工作或学习时间偷懒、做与正事无关的事情。来源于成语"浑水摸鱼"。', origin:'成语"浑水摸鱼"的网络化表达，生动形象地描述了上班/上课时偷懒的行为。', example:'"下午没什么事，来摸鱼聊会儿天。"', tags:['职场','生活'], category:'普通', createdAt:'2024-01-21', author:'管理员'},
+    {id:18, title:'CPU', desc:'不是计算机的中央处理器，而是PUA中的一种精神控制手段。指通过反复否定和打击一个人，使其自我怀疑然后更容易被控制。', origin:'源自PUA文化中的情感操控手段，经网红"许超医生"科普后广为人知。', example:'"他天天说我胖，就是在CPU我。"', tags:['心理学','情感'], category:'普通', createdAt:'2024-01-22', author:'管理员'},
+  ];
+  save();
+}
+
+function save() { localStorage.setItem('memes', JSON.stringify(memes)); }
+
+// ==================== RENDER ====================
+function renderCards(list) {
+  const grid = document.getElementById('cardGrid');
+  const emptyHint = document.getElementById('emptyHint');
+  if (!list || list.length === 0) {
+    grid.innerHTML = '';
+    emptyHint.style.display = 'block';
+    return;
+  }
+  emptyHint.style.display = 'none';
+  grid.innerHTML = list.map(m => `
+    <div class="card" onclick="openDetail(${m.id})">
+      <div class="card-title">${esc(m.title)}</div>
+      <div class="card-desc">${esc(m.desc).substring(0,80)}${m.desc.length>80?'...':''}</div>
+      <div class="card-tags">
+        <span class="tag">${esc(m.category||'未分类')}</span>
+        ${(m.tags||[]).slice(0,3).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function searchMeme() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  let list = currentCategory === '全部' ? memes : memes.filter(m => m.category === currentCategory);
+  if (!q) { renderCards(list); return; }
+  const filtered = list.filter(m =>
+    m.title.includes(q) || m.desc.includes(q) || (m.tags||[]).some(t=>t.includes(q)) || (m.category||'').includes(q)
+  );
+  renderCards(filtered);
+}
+
+// ==================== CATEGORY FILTER ====================
+function filterByCategory(cat) {
+  currentCategory = cat;
+  document.querySelectorAll('.cat-tab').forEach(tab => tab.classList.remove('active'));
+  if (cat === '全部') {
+    document.querySelector('.cat-tab')?.classList.add('active');
+  }
+  updateBadgeAll();
+  document.getElementById('searchInput').value = '';
+  searchMeme();
+}
+
+function updateBadgeAll() {
+  const badge = document.getElementById('badgeAll');
+  if (badge) badge.textContent = memes.length;
+}
+
+function updateCatCounts() {
+  updateBadgeAll();
+}
+
+// ==================== CATEGORY PAGE ====================
+function showCategoryPage() {
+  document.getElementById('mainContainer').style.display = 'none';
+  document.getElementById('categoryPage').style.display = '';
+  renderCategoryPage();
+}
+
+function renderCategoryPage() {
+  const categories = ['CS', '无畏契约', '普通'];
+  const counts = {};
+  categories.forEach(c => { counts[c] = memes.filter(m => m.category === c).length; });
+  const catNames = { 'CS': '反恐精英', '无畏契约': '无畏契约', '普通': '通用热梗' };
+  const catDescs = { 'CS': 'Counter-Strike 系列游戏相关梗', '无畏契约': 'Valorant 无畏契约相关梗', '普通': '互联网通用流行梗' };
+  const catClass = { 'CS': 'cs', '无畏契约': 'valorant', '普通': '' };
+  document.getElementById('catGrid').innerHTML = categories.map(c => `
+    <div class="cat-card ${catClass[c]}" onclick="selectCategoryAndGoHome('${c}')">
+      <div class="cat-card-count">${counts[c]}</div>
+      <div class="cat-card-name">${catNames[c]}</div>
+      <div class="cat-card-desc">${catDescs[c]}</div>
+    </div>
+  `).join('');
+}
+
+function selectCategoryAndGoHome(cat) {
+  currentCategory = cat;
+  document.getElementById('categoryTabs').style.display = '';
+  document.getElementById('mainContainer').style.display = '';
+  document.getElementById('categoryPage').style.display = 'none';
+  document.querySelectorAll('.cat-tab').forEach(t=>t.classList.remove('active'));
+  // Highlight the picker tab when a specific category is active
+  const pickerTab = document.querySelector('.cat-tab.cat-picker');
+  if (pickerTab) pickerTab.classList.add('active');
+  document.getElementById('searchInput').value = '';
+  updateCatCounts();
+  searchMeme();
+}
+
+// ==================== DETAIL ====================
+function openDetail(id) {
+  const m = memes.find(x=>x.id===id);
+  if(!m) return;
+  const overlay = document.getElementById('detailModal');
+  document.getElementById('detailModalContent').innerHTML = `
+    <button class="modal-close" onclick="closeModal('detailModal')">X</button>
+    <h3>${esc(m.title)}</h3>
+    <div class="detail-section"><h4>含义解释</h4><div class="content">${esc(m.desc)}</div></div>
+    <div class="detail-section"><h4>梗的来历</h4><div class="content">${esc(m.origin||'暂无信息')}</div></div>
+    <div class="detail-section"><h4>使用示例</h4><blockquote>${esc(m.example||'暂无示例')}</blockquote></div>
+    <div class="detail-section"><h4>分类</h4><span class="tag">${esc(m.category||'未分类')}</span></div>
+    <div class="detail-tags">${(m.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
+    ${currentUser==='admin' ? `<div style="margin-top:16px;text-align:right;">
+      <button class="btn btn-secondary btn-small" onclick="closeModal('detailModal');openEditModal(${m.id})">编辑</button>
+      <button class="btn btn-danger btn-small" onclick="if(confirm('确定删除「${esc(m.title)}」吗？')){deleteMeme(${m.id});closeModal('detailModal');}">删除</button>
+    </div>` : ''}
+  `;
+  overlay.classList.add('show');
+}
+
+// ==================== ADMIN AUTH ====================
+function showAdminAuth() {
+  if (currentUser === 'admin') { adminLogout(); return; }
+  document.getElementById('searchBar').style.display = 'none';
+  document.getElementById('categoryTabs').style.display = 'none';
+  document.getElementById('mainContainer').style.display = 'none';
+  document.getElementById('categoryPage').style.display = 'none';
+  document.getElementById('adminPanel').classList.remove('show');
+  document.getElementById('authSection').classList.add('show');
+}
+
+function adminLogin() {
+  const pwd = document.getElementById('adminPwd').value;
+  if (pwd === ADMIN_PASSWORD) {
+    currentUser = 'admin';
+    document.getElementById('authSection').classList.remove('show');
+    document.getElementById('adminPwd').value = '';
+    showAdminPanel();
+    toast('管理员登录成功');
+  } else {
+    toast('密码错误');
+  }
+}
+
+function adminLogout() {
+  currentUser = null;
+  showHome();
+  toast('已退出管理员模式');
+}
+
+function showAdminPanel() {
+  document.getElementById('searchBar').style.display = 'none';
+  document.getElementById('categoryTabs').style.display = 'none';
+  document.getElementById('mainContainer').style.display = 'none';
+  document.getElementById('categoryPage').style.display = 'none';
+  document.getElementById('authSection').classList.remove('show');
+  document.getElementById('adminPanel').classList.add('show');
+  document.getElementById('headerRight').innerHTML = '<button class="btn btn-logout" onclick="adminLogout()">已登录 | 退出</button>';
+  renderManageTable();
+}
+
+function showHome() {
+  currentUser = null;
+  currentCategory = '全部';
+  document.getElementById('searchBar').style.display = '';
+  document.getElementById('categoryTabs').style.display = '';
+  document.getElementById('mainContainer').style.display = '';
+  document.getElementById('categoryPage').style.display = 'none';
+  document.getElementById('adminPanel').classList.remove('show');
+  document.getElementById('authSection').classList.remove('show');
+  document.getElementById('headerRight').innerHTML = '<button class="btn btn-admin" onclick="showAdminAuth()">管理员登录</button>';
+  document.getElementById('searchInput').value = '';
+  // Reset tab active
+  document.querySelectorAll('.cat-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector('.cat-tab')?.classList.add('active');
+  updateCatCounts();
+  renderCards(memes);
+}
+
+function renderManageTable() {
+  const tbody = document.getElementById('manageTbody');
+  tbody.innerHTML = memes.map(m => `
+    <tr>
+      <td><strong>${esc(m.title)}</strong></td>
+      <td><span class="tag">${esc(m.category||'未分类')}</span></td>
+      <td>
+        <div class="manage-actions">
+          <button class="btn btn-secondary btn-small" onclick="openDetail(${m.id})">查看</button>
+          <button class="btn btn-secondary btn-small" onclick="openEditModal(${m.id})">编辑</button>
+          <button class="btn btn-danger btn-small" onclick="if(confirm('确定删除「${esc(m.title)}」吗？')){deleteMeme(${m.id});}">删除</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ==================== CRUD ====================
+function openAddModal() { editingId=null; showFormModal({title:'', desc:'', origin:'', example:'', tags:[], category:'CS'}); }
+
+function openEditModal(id) {
+  const m = memes.find(x=>x.id===id);
+  if(!m) return;
+  editingId = id;
+  showFormModal({...m});
+}
+
+function showFormModal(data) {
+  const modal = document.getElementById('formModalContent');
+  const cats = ['CS','无畏契约','普通'];
+  modal.innerHTML = `
+    <button class="modal-close" onclick="closeModal('formModal')">X</button>
+    <h3>${editingId?'编辑梗':'添加新梗'}</h3>
+    <div class="form-group"><label>梗名 *</label><input id="fTitle" value="${esc(data.title)}" placeholder="例如：内卷"></div>
+    <div class="form-group"><label>分类</label><select id="fCategory">${cats.map(c=>`<option ${c===data.category?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="form-group"><label>含义解释 *</label><textarea id="fDesc" placeholder="详细解释这个梗是什么意思...">${esc(data.desc)}</textarea></div>
+    <div class="form-group"><label>梗的来历</label><textarea id="fOrigin" placeholder="这个梗是怎么火起来的...">${esc(data.origin||'')}</textarea></div>
+    <div class="form-group"><label>使用示例</label><textarea id="fExample" placeholder="举个实际的例子...">${esc(data.example||'')}</textarea></div>
+    <div class="form-group">
+      <label>标签</label>
+      <div class="tag-input-wrap"><input id="fTagInput" placeholder="输入标签后按回车添加" onkeydown="if(event.key==='Enter'){event.preventDefault();addTag();}"><button class="btn btn-secondary btn-small" onclick="addTag()">添加</button></div>
+      <div class="tag-list" id="fTagList">${(data.tags||[]).map(t=>`<span class="tag-item">${esc(t)}<button onclick="removeTag(this,'${esc(t)}')">×</button></span>`).join('')}</div>
+    </div>
+    <div class="form-actions"><button class="btn btn-secondary" onclick="closeModal('formModal')">取消</button><button class="btn btn-primary" onclick="saveMeme()">保存</button></div>
+  `;
+  editingId = editingId;
+  window._formTags = [...(data.tags||[])];
+  document.getElementById('formModal').classList.add('show');
+}
+
+function addTag() {
+  const inp = document.getElementById('fTagInput');
+  const val = inp.value.trim();
+  if(!val) return;
+  if(!window._formTags.includes(val)) { window._formTags.push(val); renderFormTags(); }
+  inp.value = ''; inp.focus();
+}
+
+function removeTag(btn, tag) {
+  window._formTags = window._formTags.filter(t=>t!==tag);
+  renderFormTags();
+}
+
+function renderFormTags() {
+  const el = document.getElementById('fTagList');
+  if(el) el.innerHTML = window._formTags.map(t=>`<span class="tag-item">${esc(t)}<button onclick="removeTag(this,'${esc(t)}')">×</button></span>`).join('');
+}
+
+function saveMeme() {
+  const title = document.getElementById('fTitle').value.trim();
+  const desc = document.getElementById('fDesc').value.trim();
+  if (!title || !desc) { toast('梗名和含义解释不能为空'); return; }
+  const data = {
+    title, desc,
+    category: document.getElementById('fCategory').value,
+    origin: document.getElementById('fOrigin').value.trim(),
+    example: document.getElementById('fExample').value.trim(),
+    tags: window._formTags,
+  };
+  if (editingId) {
+    const idx = memes.findIndex(m=>m.id===editingId);
+    if(idx!==-1) { memes[idx] = {...memes[idx], ...data}; }
+    toast('梗已更新');
+  } else {
+    const newId = memes.length ? Math.max(...memes.map(m=>m.id)) + 1 : 1;
+    memes.unshift({id:newId, ...data, createdAt: new Date().toISOString().split('T')[0], author:'管理员'});
+    toast('新梗已添加');
+  }
+  save();
+  closeModal('formModal');
+  editingId = null;
+  if(currentUser==='admin') { renderManageTable(); }
+  else { updateCatCounts(); renderCards(getFilteredMemes()); }
+}
+
+function deleteMeme(id) {
+  memes = memes.filter(m=>m.id!==id);
+  save();
+  if(currentUser==='admin') renderManageTable();
+  updateCatCounts();
+  renderCards(getFilteredMemes());
+  toast('已删除');
+}
+
+function getFilteredMemes() {
+  return currentCategory === '全部' ? memes : memes.filter(m => m.category === currentCategory);
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// Close modal on overlay click
+document.getElementById('detailModal').addEventListener('click', function(e) { if(e.target===this) closeModal('detailModal'); });
+document.getElementById('formModal').addEventListener('click', function(e) { if(e.target===this) closeModal('formModal'); });
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=>el.classList.remove('show'), 2000);
+}
+
+// Init
+updateCatCounts();
+renderCards(memes);
+</script>
+</body>
+</html>
