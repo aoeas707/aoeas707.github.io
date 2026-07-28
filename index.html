@@ -258,7 +258,6 @@ body { font-family: -apple-system, 'Microsoft YaHei', 'PingFang SC', sans-serif;
     <h3 style="font-size:18px;">梗管理</h3>
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="btn btn-primary" onclick="openAddModal()">+ 添加新梗</button>
-      <button class="btn btn-primary" style="background:#8b5cf6;color:#fff;" onclick="triggerImport()" id="btnImport">📊 批量导入</button>
       <button class="btn btn-primary" style="background:#6366f1;color:#fff;" onclick="showGitSettings()" id="btnGitSetup">⚙ 同步设置</button>
       <button class="btn btn-primary" style="background:#22c55e;color:#fff;" onclick="exportData()">📥 手动导出</button>
     </div>
@@ -277,23 +276,8 @@ body { font-family: -apple-system, 'Microsoft YaHei', 'PingFang SC', sans-serif;
   </table>
 </div>
 
-<!-- HIDDEN FILE INPUT FOR EXCEL IMPORT -->
-<input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display:none;" onchange="handleFileImport(event)">
-
-<!-- IMPORT RESULT MODAL -->
-<div class="modal-overlay" id="importModal">
-  <div class="modal" style="max-width:620px;">
-    <button class="modal-close" onclick="closeModal('importModal')">X</button>
-    <h3>📊 批量导入结果</h3>
-    <div id="importSummary" style="margin-bottom:14px;font-size:14px;line-height:1.8;"></div>
-    <div id="importErrors" style="max-height:240px;overflow-y:auto;font-size:12px;color:#666;"></div>
-    <div class="form-actions">
-      <button class="btn btn-secondary" onclick="closeModal('importModal')">关闭</button>
-    </div>
-  </div>
-</div>
-
 <!-- GITHUB SETTINGS MODAL -->
+<div class="modal-overlay" id="gitSettingsModal">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('gitSettingsModal')">X</button>
     <h3>⚙ GitHub 自动同步设置</h3>
@@ -343,7 +327,6 @@ body { font-family: -apple-system, 'Microsoft YaHei', 'PingFang SC', sans-serif;
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="data.js"></script>
 <script>
 // ==================== DATA ====================
@@ -390,129 +373,6 @@ function exportData() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   toast('data.js 已下载！请替换仓库中的文件并 push 到 GitHub');
-}
-
-// ==================== BATCH IMPORT ====================
-function triggerImport() {
-  document.getElementById('excelFileInput').click();
-}
-
-function handleFileImport(event) {
-  var file = event.target.files[0];
-  if (!file) return;
-
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      var data = new Uint8Array(e.target.result);
-      var workbook = XLSX.read(data, { type: 'array' });
-      var sheetName = workbook.SheetNames[0];
-      var sheet = workbook.Sheets[sheetName];
-      var rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-      if (rows.length < 2) {
-        toast('⚠ 表格至少需要表头行和一行数据');
-        return;
-      }
-
-      // 表头：梗名 | 分类 | 含义解释 | 梗的来历 | 使用示例 | 标签
-      var header = rows[0];
-      // 跳过表头，从第2行开始
-      var dataRows = rows.slice(1);
-      var validCategories = ['CS', '无畏契约', '普通'];
-
-      var successCount = 0;
-      var skipCount = 0;
-      var errors = [];
-      var newMemes = [];
-
-      var maxId = memes.length ? Math.max.apply(null, memes.map(function(m) { return m.id; })) : 0;
-      var today = new Date().toISOString().split('T')[0];
-
-      dataRows.forEach(function(row, index) {
-        var rowNum = index + 2; // Excel 行号
-        var title = String(row[0] || '').trim();
-        var category = String(row[1] || '').trim();
-        var desc = String(row[2] || '').trim();
-        var origin = String(row[3] || '').trim();
-        var example = String(row[4] || '').trim();
-        var tagsStr = String(row[5] || '').trim();
-
-        if (!title) { skipCount++; return; }
-        if (!desc) {
-          errors.push('第' + rowNum + '行「' + (title || '(无标题)') + '」跳过了：缺少含义解释');
-          skipCount++; return;
-        }
-
-        // 分类校验
-        if (!category || validCategories.indexOf(category) === -1) {
-          category = '普通';
-        }
-
-        // 标签处理
-        var tags = [];
-        if (tagsStr) {
-          tags = tagsStr.split(/[,，]/).map(function(t) { return t.trim(); }).filter(function(t) { return t; });
-        }
-
-        maxId++;
-        newMemes.push({
-          id: maxId,
-          title: title,
-          desc: desc,
-          category: category,
-          origin: origin,
-          example: example,
-          tags: tags,
-          createdAt: today,
-          author: '批量导入'
-        });
-        successCount++;
-      });
-
-      // 合并到 memes 数组（新导入的放最前面）
-      if (newMemes.length > 0) {
-        memes = newMemes.concat(memes);
-        save();
-      }
-
-      // 显示结果弹窗
-      showImportResult(successCount, skipCount, errors);
-
-      // 刷新管理表格
-      renderManageTable();
-      updateCatCounts();
-
-      // 自动同步到 GitHub
-      if (successCount > 0 && isGitSyncEnabled()) {
-        syncToGitHub();
-      }
-
-    } catch(err) {
-      toast('⚠ 解析文件失败：' + err.message);
-    }
-  };
-  reader.readAsArrayBuffer(file);
-  // 清除 input，允许重复选择同一个文件
-  event.target.value = '';
-}
-
-function showImportResult(success, skipped, errors) {
-  document.getElementById('importSummary').innerHTML =
-    '<div style="background:#e8f5e9;border-radius:8px;padding:12px 16px;color:#2e7d32;">' +
-      '✅ 成功导入 <b>' + success + '</b> 条梗' +
-      (skipped > 0 ? '，跳过 <b>' + skipped + '</b> 行' : '') +
-    '</div>';
-
-  var errDiv = document.getElementById('importErrors');
-  if (errors.length > 0) {
-    errDiv.innerHTML = '<div style="color:#e04040;font-weight:600;margin-bottom:6px;">⚠ 以下行被跳过：</div>' +
-      errors.map(function(e) { return '<div style="padding:4px 0;border-bottom:1px solid #f0f0f0;">' + e + '</div>'; }).join('');
-  } else {
-    errDiv.innerHTML = '';
-  }
-
-  document.getElementById('importModal').classList.add('show');
 }
 
 // ==================== GITHUB AUTO SYNC (via Cloudflare Worker) ====================
@@ -905,7 +765,6 @@ function closeModal(id) { document.getElementById(id).classList.remove('show'); 
 document.getElementById('detailModal').addEventListener('click', function(e) { if(e.target===this) closeModal('detailModal'); });
 document.getElementById('formModal').addEventListener('click', function(e) { if(e.target===this) closeModal('formModal'); });
 document.getElementById('gitSettingsModal').addEventListener('click', function(e) { if(e.target===this) closeModal('gitSettingsModal'); });
-document.getElementById('importModal').addEventListener('click', function(e) { if(e.target===this) closeModal('importModal'); });
 
 function toast(msg) {
   const el = document.getElementById('toast');
